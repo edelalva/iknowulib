@@ -1,0 +1,24 @@
+{
+    "app": {
+        "br_static": true,
+        "client_max_body_size": "1M",
+        "client_max_memory_body_size": "64K",
+        "client_max_websocket_message_size": "128K",
+        "document_root": "./",
+        "dynamic_views_output_path": "",
+        "dynamic_views_path": [
+            "./views"
+        ],
+        "log": {
+            "display_local_time": false,
+            "log_level": "SILENT",
+            "log_path": "./logs",
+            "log_size_limit": 100000000,
+            "logfile_base_name": "iKuLog",
+            "max_files": 10,
+            "use_spdlog": true
+        }
+    },
+    "custom_config": {}
+    
+}
