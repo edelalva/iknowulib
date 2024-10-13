@@ -32,3 +32,5 @@ extern "C" MYFUNCTIONS_API const  char* convertImageToTemplateWithId(unsigned ch
 // register via template with param
 // e.g. ,"name":"Juan dele Cruz"
 extern "C" MYFUNCTIONS_API const char* startTemplateRegistration(const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* param, const char* templateHex, const bool isLog);
+// get image data, then convert to temaplte and register finger
+extern "C" MYFUNCTIONS_API const char* getImageAndRegFinger(unsigned char* imageData, int width, int height, const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* param, const bool isLog);

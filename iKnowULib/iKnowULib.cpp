@@ -459,7 +459,7 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
     // Create cv::Mat from the buffer
     cv::Mat image(height, width, CV_8UC1, const_cast<unsigned char*>(buffer));
 
-    cv::imwrite("before.png", image);
+   // cv::imwrite("before.png", image);
 
     // do the finger preparation
 
@@ -486,7 +486,7 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
 
     cv::Mat smoothedFingerprint = smoothFingerprintEdgesMe(equalizedImage);
 
-    cv::imwrite("after.png", smoothedFingerprint);
+    //cv::imwrite("after.png", smoothedFingerprint);
 
     return binarizedGImage;
 }
@@ -2234,13 +2234,13 @@ const  char* convertImageToTemplate(unsigned char* imageData, int size,  const b
     cv::Size newSize(300, 400); // Example new size for the frame
     resizeFrame(flippedImage, resizedFrame, newSize);
  //   cv::resize(image, resizedFrame, cv::Size(300, 400));
-    cv::imwrite("resize.png", resizedFrame);
+   // cv::imwrite("resize.png", resizedFrame);
    
     cv::Mat contrastBrightness;
     double alpha = 1; // Contrast control (1.0 - 3.0)
     int beta = -50;      // Brightness control (0 - 100)
     adjustContrastBrightness(resizedFrame, contrastBrightness, alpha, beta);
-    cv::imwrite("contrast.png", contrastBrightness);
+   // cv::imwrite("contrast.png", contrastBrightness);
 
     //cv::Mat GaussianBlurImage;
     //// Apply Gaussian Blur
@@ -2252,7 +2252,7 @@ const  char* convertImageToTemplate(unsigned char* imageData, int size,  const b
     //binarizeImage(GaussianBlurImage, binarizedGImage);
 
     cv::Mat smoothedFingerprint = smoothFingerprintEdges(contrastBrightness);
-    cv::imwrite("Smooth2.png", smoothedFingerprint);
+   // cv::imwrite("Smooth2.png", smoothedFingerprint);
 
     std::string templateHex, cause;
 
@@ -2302,13 +2302,13 @@ const  char* convertImageToTemplateWithId(unsigned char* imageData, int size, in
     cv::Size newSize(300, 400); // Example new size for the frame
     resizeFrame(flippedImage, resizedFrame, newSize);
     //   cv::resize(image, resizedFrame, cv::Size(300, 400));
-    cv::imwrite(id_string + "_resize.png", resizedFrame);
+    //cv::imwrite(id_string + "_resize.png", resizedFrame);
 
     cv::Mat contrastBrightness;
     double alpha = 1; // Contrast control (1.0 - 3.0)
     int beta = -50;      // Brightness control (0 - 100)
     adjustContrastBrightness(resizedFrame, contrastBrightness, alpha, beta);
-    cv::imwrite(id_string + "_contrast.png", contrastBrightness);
+    //cv::imwrite(id_string + "_contrast.png", contrastBrightness);
 
     //cv::Mat GaussianBlurImage;
     //// Apply Gaussian Blur
@@ -2320,7 +2320,7 @@ const  char* convertImageToTemplateWithId(unsigned char* imageData, int size, in
     //binarizeImage(GaussianBlurImage, binarizedGImage);
 
     cv::Mat smoothedFingerprint = smoothFingerprintEdges(contrastBrightness);
-    cv::imwrite(id_string + "_Smooth2.png", smoothedFingerprint);
+    //cv::imwrite(id_string + "_Smooth2.png", smoothedFingerprint);
 
     std::string templateHex, cause;
 
@@ -2371,7 +2371,7 @@ bool convertImageToTemplateBool(unsigned char* imageData, int width, int height,
 
     cv::Mat image = convertAndResizeImage(imageData, width, height);
 
-    cv::imwrite("FinalConvert.png", image);
+   // cv::imwrite("FinalConvert.png", image);
 
     if (!getTemplate(image, templateHex, cause)) {
         result = "Error: Failed to convert Template. Cause: " + cause;
@@ -2449,7 +2449,7 @@ const char* startTemplateRegistration(const char* ipAddress, const char* port, c
 {
     initLog(isLog);
 
-      std::lock_guard<std::mutex> lock(g_mutex); // Lock the mutex for the duration of this scope
+     std::lock_guard<std::mutex> lock(g_mutex); // Lock the mutex for the duration of this scope
     //unsigned int bufferSize = 400 * 400;
     //unsigned char* buffer = new unsigned char[bufferSize];
     //std::memset(buffer, 0, bufferSize);
@@ -2494,4 +2494,49 @@ const char* startTemplateRegistration(const char* ipAddress, const char* port, c
     mMessageRet = messages_base;
 
     return mMessageRet.c_str();
+}
+
+const char* getImageAndRegFinger(unsigned char* imageData, int width, int height, const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* param, const bool isLog)
+{
+    std::string templateHex;
+
+    // templateHex = convertImageToTemplate(imageData, width * height, isLog);
+    if (!convertImageToTemplateBool(imageData, width, height, isLog, templateHex))
+    {
+        LOG_INFO << "getImageAndGetFingerId error: " << templateHex;
+        mMessageRet = createJsonResponse("error", templateHex);
+        return mMessageRet.c_str();
+    }
+
+    std::string cause;
+    mMessageRet.clear();
+
+    LOG_INFO << "getImageAndRegFinger: started";
+
+    std::string ip = ipAddress;
+    std::string mport = port;
+    std::string mappId = appId;
+    std::string finger_ = finger;
+    std::string mreturnId = returnId;
+    std::string minutiae2 = "123123";
+    std::string mtemplateHex = templateHex;
+    std::string mparam = param;
+
+    std::string messages_base;
+    clusterRegTemplate(ip, mport, mappId, finger_, mreturnId, mparam, mtemplateHex, [&messages_base](bool success, const std::string& message) {
+
+        if (success) {
+            LOG_INFO << "clusterReg success: " << message;
+            messages_base = message;
+        }
+        else {
+            LOG_SYSERR << "clusterReg - Operation failed: " << message;
+            messages_base = message;
+        }
+        });
+
+    mMessageRet = messages_base;
+
+    return mMessageRet.c_str();
+
 }
