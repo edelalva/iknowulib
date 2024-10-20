@@ -459,7 +459,7 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
     // Create cv::Mat from the buffer
     cv::Mat image(height, width, CV_8UC1, const_cast<unsigned char*>(buffer));
 
-   // cv::imwrite("before.png", image);
+    cv::imwrite("before.png", image);
 
     // do the finger preparation
 
@@ -472,24 +472,65 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
     cv::Size newSize(300, 400); // Example new size for the frame
     resizeFrame(zoomedImage, resizedFrame, newSize);
 
+
+    cv::Mat contrastBrightness;
+    double alpha = 1; // Contrast control (1.0 - 3.0)
+    int beta = -50;      // Brightness control (0 - 100)
+    adjustContrastBrightness(resizedFrame, contrastBrightness, alpha, beta);
+
     cv::Mat equalizedImage;
-    adaptiveHistogramEqualization(resizedFrame, equalizedImage, 2.0, 8);
+    adaptiveHistogramEqualization(contrastBrightness, equalizedImage, 1.5, 9);
+    cv::Mat equalizedImage2;
+    adaptiveHistogramEqualization(equalizedImage, equalizedImage2, 2, 9);
 
-    cv::Mat GaussianBlurImage;
-    // Apply Gaussian Blur
-    int kernelSize = 3;  // Size of the Gaussian kernel (e.g., 3, 5, 7, 9, etc.)
-    double sigmaX = 1; // Standard deviation in the X direction
-    applyGaussianBlur(equalizedImage, GaussianBlurImage, kernelSize, sigmaX);
+    cv::Mat smooth;
+    smooth = smoothFingerprintEdgesMe(equalizedImage2);
 
-    cv::Mat binarizedGImage;
-    binarizeImage(GaussianBlurImage, binarizedGImage);
+    cv::imwrite("after.png", smooth);
 
-    cv::Mat smoothedFingerprint = smoothFingerprintEdgesMe(equalizedImage);
-
-    //cv::imwrite("after.png", smoothedFingerprint);
-
-    return binarizedGImage;
+    return smooth;
 }
+//
+//
+//cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height) {
+//    // Create cv::Mat from the buffer
+//    cv::Mat image(height, width, CV_8UC1, const_cast<unsigned char*>(buffer));
+//
+//    cv::imwrite("before_reg.png", image);
+//
+//    // do the finger preparation
+//
+//    cv::Mat zoomedImage;
+//    double zoomFactor = 1.2; // Example zoom factor
+//    zoomImage(image, zoomedImage, zoomFactor);
+//
+//    // Resize the frame
+//    cv::Mat resizedFrame;
+//    cv::Size newSize(300, 400); // Example new size for the frame
+//    resizeFrame(zoomedImage, resizedFrame, newSize);
+//
+//    cv::Mat equalizedImage;
+//    adaptiveHistogramEqualization(resizedFrame, equalizedImage, 2.0, 8);
+//    cv::imwrite("equal_reg.png", equalizedImage);
+//
+//    cv::Mat GaussianBlurImage;
+//    // Apply Gaussian Blur
+//    int kernelSize = 3;  // Size of the Gaussian kernel (e.g., 3, 5, 7, 9, etc.)
+//    double sigmaX = 1; // Standard deviation in the X direction
+//    applyGaussianBlur(equalizedImage, GaussianBlurImage, kernelSize, sigmaX);
+//    cv::imwrite("gb_reg.png", GaussianBlurImage);
+//
+//    cv::Mat binarizedGImage;
+//    binarizeImage(GaussianBlurImage, binarizedGImage);
+//
+//    cv::imwrite("bin_reg.png", binarizedGImage);
+//
+//    cv::Mat smoothedFingerprint = smoothFingerprintEdgesMe(equalizedImage);
+//
+//    cv::imwrite("smooth_reg.png", smoothedFingerprint);
+//
+//    return binarizedGImage;
+//}
 
 
 
