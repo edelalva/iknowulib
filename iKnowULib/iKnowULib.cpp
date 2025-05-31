@@ -34,6 +34,8 @@ std::promise<void> cancelPromise;
 
 std::mutex g_mutex; // Global mutex for synchronization
 
+boolean isHttps = false;
+
 
 
 // Define log levels
@@ -459,7 +461,7 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
     // Create cv::Mat from the buffer
     cv::Mat image(height, width, CV_8UC1, const_cast<unsigned char*>(buffer));
 
-    cv::imwrite("before.png", image);
+  //  cv::imwrite("before.png", image);
 
     // do the finger preparation
 
@@ -486,7 +488,7 @@ cv::Mat convertAndResizeImage(const unsigned char* buffer, int width, int height
     cv::Mat smooth;
     smooth = smoothFingerprintEdgesMe(equalizedImage2);
 
-    cv::imwrite("after.png", smooth);
+  //  cv::imwrite("after.png", smooth);
 
     return smooth;
 }
@@ -614,7 +616,7 @@ bool captureFingerprintImage(cv::Mat& imageData, std::string& cause, std::promis
  
         imageData = convertAndResizeImage(buffer, captureResult.info.width, captureResult.info.height);
 
-        cv::imwrite("output.png", imageData); 
+      //  cv::imwrite("output.png", imageData); 
 
         LOG_INFO << "Capture CV size!: " << imageData.total() * imageData.elemSize();
 
@@ -890,9 +892,9 @@ size_t WriteCallbackReg(void* contents, size_t size, size_t nmemb, std::string* 
     return size * nmemb;
 }
 
-void clusterReg(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const std::string& minutiae2, const ClusterRegCallback& callback)
+void clusterReg(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const std::string& minutiae2, const ClusterRegCallback& callback, bool isHTTPS = false)
 {
-    auto link = "http://" + ip + ":" + port + "/regverify";
+    auto link = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/regverify";
 
     /*Json::Value jsonResponse;
     jsonResponse["appId"] = appId;
@@ -918,7 +920,7 @@ void clusterReg(const std::string& ip, const std::string& port, const std::strin
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
-    std::thread([link, jsonStr, &promise]() {
+    std::thread([link, jsonStr, &promise, isHTTPS]() {
         CURL* curl;
         CURLcode res;
         std::string response_string;
@@ -927,6 +929,12 @@ void clusterReg(const std::string& ip, const std::string& port, const std::strin
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, link.c_str());
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+            if (isHTTPS) {
+                // Disable SSL verification for self-signed certificates
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+            }
 
             // Set callback function to capture the response
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallbackReg);
@@ -963,9 +971,9 @@ void clusterReg(const std::string& ip, const std::string& port, const std::strin
     }
 }
 
-void clusterRegx(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const ClusterRegCallback& callback)
+void clusterRegx(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const ClusterRegCallback& callback, bool isHTTPS = false)
 {
-    auto link = "http://" + ip + ":" + port + "/registration";
+    auto link = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/registration";
 
     /*Json::Value jsonResponse;
     jsonResponse["appId"] = appId;
@@ -990,7 +998,7 @@ void clusterRegx(const std::string& ip, const std::string& port, const std::stri
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
-    std::thread([link, jsonStr, &promise]() {
+    std::thread([link, jsonStr, &promise, isHTTPS]() {
         CURL* curl;
         CURLcode res;
         std::string response_string;
@@ -999,6 +1007,12 @@ void clusterRegx(const std::string& ip, const std::string& port, const std::stri
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, link.c_str());
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+            if (isHTTPS) {
+                // Disable SSL verification for self-signed certificates
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+            }
 
             // Set callback function to capture the response
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallbackReg);
@@ -1036,9 +1050,9 @@ void clusterRegx(const std::string& ip, const std::string& port, const std::stri
 }
 
 
-void clusterRegTemplate(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& param, const std::string& minutiae, const ClusterRegCallback& callback)
+void clusterRegTemplate(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& param, const std::string& minutiae, const ClusterRegCallback& callback, bool isHTTPS = false)
 {
-    auto link = "http://" + ip + ":" + port + "/registration";
+    auto link = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/registration";
 
     /*Json::Value jsonResponse;
     jsonResponse["appId"] = appId;
@@ -1064,7 +1078,7 @@ void clusterRegTemplate(const std::string& ip, const std::string& port, const st
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
-    std::thread([link, jsonStr, &promise]() {
+    std::thread([link, jsonStr, &promise, isHTTPS]() {
         CURL* curl;
         CURLcode res;
         std::string response_string;
@@ -1073,6 +1087,12 @@ void clusterRegTemplate(const std::string& ip, const std::string& port, const st
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, link.c_str());
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+            if (isHTTPS) {
+                // Disable SSL verification for self-signed certificates
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+            }
 
             // Set callback function to capture the response
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallbackReg);
@@ -1108,6 +1128,8 @@ void clusterRegTemplate(const std::string& ip, const std::string& port, const st
         callback(false, createJsonResponse("fail", "Request timeout."));
     }
 }
+
+
 //
 //void clusterReg(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const std::string& minutiae2, const ClusterRegCallback& callback)
 //{
@@ -1340,8 +1362,8 @@ std::unordered_map<std::string, std::string> manualJsonParse(const std::string& 
 
 
 
-void clusterVal(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback) {
-    auto url = "http://" + ip + ":" + port + "/validation";
+void clusterVal(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false) {
+    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/validation";
     std::string ver = JSONCPP_VERSION_STRING;
     std::string jsonStr = "{"
         "\"appId\": \"" + appId + "\", "
@@ -1352,7 +1374,7 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
     std::promise<std::string> promise;
     auto future = promise.get_future();
 
-    std::thread([url, jsonStr, promise = std::move(promise)]() mutable {
+    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS]() mutable {
         CURL* curl = curl_easy_init();
         if (!curl) {
             promise.set_value(createJsonResponse("error", "Unable to initialize curl"));
@@ -1362,6 +1384,13 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
         std::string response;
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+        if (isHTTPS) {
+            // Disable SSL verification for self-signed certificates
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        }
+
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         struct curl_slist* headers = nullptr;
@@ -1461,8 +1490,8 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
 
 
 
-void clusterValWithTemplate(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback) {
-    auto url = "http://" + ip + ":" + port + "/validation";
+void clusterValWithTemplate(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false) {
+    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/validation";
     std::string ver = JSONCPP_VERSION_STRING;
     std::string jsonStr = "{"
         "\"appId\": \"" + appId + "\", "
@@ -1473,7 +1502,7 @@ void clusterValWithTemplate(const std::string& ip, const std::string& port, cons
     std::promise<std::string> promise;
     auto future = promise.get_future();
 
-    std::thread([url, jsonStr, promise = std::move(promise)]() mutable {
+    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS]() mutable {
         CURL* curl = curl_easy_init();
         if (!curl) {
             promise.set_value(createJsonResponse("error", "Unable to initialize curl"));
@@ -1483,6 +1512,13 @@ void clusterValWithTemplate(const std::string& ip, const std::string& port, cons
         std::string response;
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+        if (isHTTPS) {
+            // Disable SSL verification for self-signed certificates
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        }
+
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         struct curl_slist* headers = nullptr;
@@ -1784,7 +1820,7 @@ const char* ScanValidateFinger(const char* ipAddress, const char* port, const ch
                 LOG_SYSERR << "clusterReg - Operation failed: " << message;
                 messages_base = message;
             }
-        });
+        }, isHttps);
 
         mMessageRet = messages_base;
 
@@ -1870,7 +1906,7 @@ const char* ScanRegisterFinger(const char* ipAddress, const char* port, const ch
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2007,7 +2043,7 @@ const char* ScanRegisterFingerx(const char* ipAddress, const char* port, const c
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2147,7 +2183,7 @@ const char* startScanAndGetFingerIDx(const char* numCaptured, const char* ipAddr
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2225,7 +2261,7 @@ const char* ScanRegisterFingerf(const char* filename, const char* ipAddress, con
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2447,7 +2483,7 @@ const char* getImageAndGetFingerIdSmooth(unsigned char* imageData, int width, in
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2479,7 +2515,7 @@ const char* getImageAndGetFingerId(unsigned char* imageData, int width, int heig
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2530,7 +2566,7 @@ const char* startTemplateRegistration(const char* ipAddress, const char* port, c
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
@@ -2574,7 +2610,7 @@ const char* getImageAndRegFinger(unsigned char* imageData, int width, int height
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        });
+        }, isHttps);
 
     mMessageRet = messages_base;
 
