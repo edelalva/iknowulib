@@ -16,6 +16,12 @@ extern "C" MYFUNCTIONS_API const char* startScanAndRegisterFingerID(const char* 
 
 extern "C" MYFUNCTIONS_API const char* startScan(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const bool isLog);
 
+extern "C" MYFUNCTIONS_API const char* startScanAndGetFingerIDs(const char* ipAddress, const char* port, const char* appId, const bool isLog, const char* authToken);
+extern "C" MYFUNCTIONS_API const char* startScanAndRegisterFingerIDs(const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* minutiae, const bool isLog, const char* authToken);
+
+
+
+
 // not in use
 //extern "C" MYFUNCTIONS_API const char* startScanAndRegisterFingerIDx(const char* numCaptured, const char* ipAddress, const char* port, const char* appId, const char* returnId);
 extern "C" MYFUNCTIONS_API const char* startScanAndGetFingerIDx(const char* numCaptured, const char* ipAddress, const char* port, const char* appId);

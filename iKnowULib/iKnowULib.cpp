@@ -892,18 +892,14 @@ size_t WriteCallbackReg(void* contents, size_t size, size_t nmemb, std::string* 
     return size * nmemb;
 }
 
-void clusterReg(const std::string& ip, const std::string& port, const std::string& appId, const std::string& finger_, const std::string& returnId, const std::string& minutiae, const std::string& minutiae2, const ClusterRegCallback& callback, bool isHTTPS = false)
-{
-    auto link = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/regverify";
 
-    /*Json::Value jsonResponse;
-    jsonResponse["appId"] = appId;
-    jsonResponse["finger"] = finger_;
-    jsonResponse["returnId"] = returnId;
-    jsonResponse["minutiae"] = minutiae;
-    jsonResponse["minutiae2"] = minutiae2;*/
-    // Start building the JSON string
-    //std::string jsonStr = jsonResponse.toStyledString();
+void clusterReg(const std::string& ip, const std::string& port, const std::string& appId,
+    const std::string& finger_, const std::string& returnId,
+    const std::string& minutiae, const std::string& minutiae2,
+    const ClusterRegCallback& callback, bool isHTTPS = false,
+    const std::string& authToken = "") // authToken is now a pointer, default to nullptr
+{
+    auto link = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/addbiometric";
 
     std::ostringstream jsonStream;
     jsonStream << "{";
@@ -915,12 +911,11 @@ void clusterReg(const std::string& ip, const std::string& port, const std::strin
     jsonStream << "}";
     std::string jsonStr = jsonStream.str();
 
-
-
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
-    std::thread([link, jsonStr, &promise, isHTTPS]() {
+    // Capture authToken by value for the lambda (it's a pointer)
+    std::thread([link, jsonStr, &promise, isHTTPS, authToken]() {
         CURL* curl;
         CURLcode res;
         std::string response_string;
@@ -942,6 +937,15 @@ void clusterReg(const std::string& ip, const std::string& port, const std::strin
 
             struct curl_slist* headers = nullptr;
             headers = curl_slist_append(headers, "Content-Type: application/json");
+
+            // --- Conditionally add the Authorization header if authToken is NOT empty ---
+            if (!authToken.empty()) { // Check if the string is not empty
+                std::string authHeader = "Authorization: Bearer " + authToken;
+                headers = curl_slist_append(headers, authHeader.c_str());
+            }
+            // --------------------------------------------------------------------------
+
+
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
             res = curl_easy_perform(curl);
@@ -1362,8 +1366,8 @@ std::unordered_map<std::string, std::string> manualJsonParse(const std::string& 
 
 
 
-void clusterVal(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false) {
-    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/validation";
+void clusterVal(const std::string& ip, const std::string& port, const std::string& appId, const std::string& minutiae, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false, const std::string& authToken = "") {
+    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/checkbiometric";
     std::string ver = JSONCPP_VERSION_STRING;
     std::string jsonStr = "{"
         "\"appId\": \"" + appId + "\", "
@@ -1374,7 +1378,7 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
     std::promise<std::string> promise;
     auto future = promise.get_future();
 
-    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS]() mutable {
+    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS, authToken]() mutable {
         CURL* curl = curl_easy_init();
         if (!curl) {
             promise.set_value(createJsonResponse("error", "Unable to initialize curl"));
@@ -1395,6 +1399,14 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // --- Conditionally add the Authorization header if authToken is NOT empty ---
+        if (!authToken.empty()) { // Check if the string is not empty
+            std::string authHeader = "Authorization: Bearer " + authToken;
+            headers = curl_slist_append(headers, authHeader.c_str());
+        }
+        // --------------------------------------------------------------------------
+
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
@@ -1758,7 +1770,7 @@ bool isValidNumber(const char* numCaptured) {
 
 
 
-const char* ScanValidateFinger(const char* ipAddress, const char* port, const char* appId)
+const char* ScanValidateFinger(const char* ipAddress, const char* port, const char* appId, bool isHttps = false, const char* authToken = nullptr)
 {
     std::lock_guard<std::mutex> lock(g_mutex); // Lock the mutex for the duration of this scope
         //unsigned int bufferSize = 400 * 400;
@@ -1775,6 +1787,7 @@ const char* ScanValidateFinger(const char* ipAddress, const char* port, const ch
         std::string ip = ipAddress;
         std::string mport = port;
         std::string mappId = appId;
+		std::string authTokenStr = authToken ? authToken : "";
 
         if (!validateInputVal(ip, mport, mappId, cause)) {
             std::string retstr = "Validation fail. Cause: " + cause;
@@ -1813,14 +1826,14 @@ const char* ScanValidateFinger(const char* ipAddress, const char* port, const ch
         clusterVal(ip, mport, mappId, templateHex, [&messages_base](bool success, const std::string& message) {
       
             if (success) {
-                LOG_INFO << "clusterReg success: " << message;
+                LOG_INFO << "validation success: " << message;
                 messages_base = message;
             }
             else {
-                LOG_SYSERR << "clusterReg - Operation failed: " << message;
+                LOG_SYSERR << "validation - Operation failed: " << message;
                 messages_base = message;
             }
-        }, isHttps);
+        }, isHttps, authToken);
 
         mMessageRet = messages_base;
 
@@ -1839,9 +1852,15 @@ const char* startScanAndGetFingerID(const char* ipAddress, const char* port, con
     return ScanValidateFinger(ipAddress, port, appId);
 }
 
+const char* startScanAndGetFingerIDs(const char* ipAddress, const char* port, const char* appId, const bool isLog, const char* authToken)
+{
+    initLog(isLog);
+    return ScanValidateFinger(ipAddress, port, appId, true, authToken);
+}
 
 
-const char* ScanRegisterFinger(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const char* minutiae_)
+
+const char* ScanRegisterFinger(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const char* minutiae_, bool isHttps = false, const char* authToken = nullptr)
 {
     std::lock_guard<std::mutex> lock(g_mutex); // Lock the mutex for the duration of this scope
     //unsigned int bufferSize = 400 * 400;
@@ -1861,6 +1880,7 @@ const char* ScanRegisterFinger(const char* ipAddress, const char* port, const ch
     std::string finger = finger_;
     std::string mreturnId = returnId;
     std::string minutiae2 = minutiae_;
+	std::string authTokenStr = authToken ? authToken : "";
 
     if (!validateInputReg(ip, mport, mappId, mreturnId, minutiae2, cause)) {
         std::string retstr = "Validation fail. Cause: " + cause;
@@ -1896,7 +1916,8 @@ const char* ScanRegisterFinger(const char* ipAddress, const char* port, const ch
 
     mStage = STAGE_SENDING;
     std::string messages_base;
-    clusterReg(ip, mport, mappId, finger, mreturnId, templateHex, minutiae2, [&messages_base](bool success, const std::string& message) {
+    clusterReg(ip, mport, mappId, finger, mreturnId, templateHex, minutiae2, [&messages_base](bool success, const std::string& message)
+        {
 
         if (success) {
             LOG_INFO << "clusterReg success: " << message;
@@ -1906,7 +1927,7 @@ const char* ScanRegisterFinger(const char* ipAddress, const char* port, const ch
             LOG_SYSERR << "clusterReg - Operation failed: " << message;
             messages_base = message;
         }
-        }, isHttps);
+        }, isHttps, authTokenStr);
 
     mMessageRet = messages_base;
 
@@ -1922,6 +1943,14 @@ const char* startScanAndRegisterFingerID(const char* ipAddress, const char* port
     initLog(isLog);
     // include minutiae from the scan
     return ScanRegisterFinger(ipAddress, port, appId, finger, returnId, minutiae);
+}
+
+const char* startScanAndRegisterFingerIDs(const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* minutiae, const bool isLog, const char* authToken)
+{
+    // islog false for chrome extension
+    initLog(isLog);
+    // include minutiae from the scan
+    return ScanRegisterFinger(ipAddress, port, appId, finger, returnId, minutiae, true, authToken );
 }
 
 const char* startScan(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const bool isLog)
