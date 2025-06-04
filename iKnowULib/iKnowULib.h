@@ -20,6 +20,11 @@ extern "C" MYFUNCTIONS_API const char* startScanAndGetFingerIDs(const char* ipAd
 extern "C" MYFUNCTIONS_API const char* startScanAndRegisterFingerIDs(const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* minutiae, const bool isLog, const char* authToken);
 
 
+extern "C" MYFUNCTIONS_API const char* startBioEncrypt(const char* ipAddress, const char* port, const char* appId, const char* profile, const char* data, const bool isLog, const char* authToken);
+
+extern "C" MYFUNCTIONS_API const char* startBioDecrypt(const char* ipAddress, const char* port, const char* appId, const char* profile, const char* data, const bool isLog, const char* authToken);
+
+
 
 
 // not in use

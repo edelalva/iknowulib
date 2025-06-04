@@ -1494,10 +1494,6 @@ void clusterVal(const std::string& ip, const std::string& port, const std::strin
     else {
         callback(false, createJsonResponse("error", "Request timeout."));
     }
-
-
-
-
 }
 
 
@@ -1621,10 +1617,254 @@ void clusterValWithTemplate(const std::string& ip, const std::string& port, cons
     else {
         callback(false, createJsonResponse("error", "Request timeout."));
     }
+}
 
 
+void clusterDecrypt(const std::string& ip, const std::string& port, const std::string& appId, const std::string& profile, const std::string& minutiae,  const std::string& data, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false, const std::string& authToken = "") {
+    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/Decrypt";
+    std::string ver = JSONCPP_VERSION_STRING;
+    std::string jsonStr = "{"
+        "\"appId\": \"" + appId + "\", "
+        "\"profile\": \"" + profile + "\","
+		"\"minutiae\": \"" + minutiae + "\","
+        "\"data\": \"" + data + "\""
+        "}";
 
 
+    std::promise<std::string> promise;
+    auto future = promise.get_future();
+
+    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS, authToken]() mutable {
+        CURL* curl = curl_easy_init();
+        if (!curl) {
+            promise.set_value(createJsonResponse("error", "Unable to initialize curl"));
+            return;
+        }
+
+        std::string response;
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+        if (isHTTPS) {
+            // Disable SSL verification for self-signed certificates
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        }
+
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // --- Conditionally add the Authorization header if authToken is NOT empty ---
+        if (!authToken.empty()) { // Check if the string is not empty
+            std::string authHeader = "Authorization: Bearer " + authToken;
+            headers = curl_slist_append(headers, authHeader.c_str());
+        }
+        // --------------------------------------------------------------------------
+
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        CURLcode res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+
+        if (res != CURLE_OK) {
+            promise.set_value(createJsonResponse("error", "Error: " + std::string(curl_easy_strerror(res))));
+        }
+        else {
+            promise.set_value(response);
+        }
+        }).detach();
+
+    if (future.wait_for(std::chrono::seconds(30)) == std::future_status::ready) {
+        try {
+            std::string result = future.get();
+            LOG_INFO << "Response: " << result;
+            callback(true, result);
+            return;
+
+            // Check if result contains escape characters
+            if (result.find('\\') != std::string::npos) {
+                // Remove escape characters
+                result.erase(std::remove(result.begin(), result.end(), '\\'), result.end());
+            }
+
+            // Manual parsing of the main response
+            auto jsonResponse = manualJsonParse(result);
+            LOG_INFO << "after Response: " << result;
+
+		
+
+            // Check if returnId exists
+            if (jsonResponse.find("toReturn") != jsonResponse.end()) {
+                std::string returnIdStr = jsonResponse["toReturn"];
+
+                LOG_INFO << "toReturn: " << returnIdStr;
+
+                // Manually parse returnIdStr
+                auto returnIdJson = manualJsonParse(returnIdStr);
+                if (returnIdJson.empty()) {
+                    LOG_ERROR << "Failed to parse returnId: " << returnIdStr;
+                    callback(false, createJsonResponse("error", "Invalid returnId format."));
+                    return;
+                }
+
+                // Merge the fields from returnIdJson into jsonResponse
+                jsonResponse.insert(returnIdJson.begin(), returnIdJson.end());
+            }
+
+            //std::string similarity = jsonResponse["similarity"];
+            std::string version = jsonResponse["version"];
+
+            // Convert back to JSON string manually
+            std::string newJson = "{";
+            for (const auto& pair : jsonResponse) {
+                newJson += "\"" + pair.first + "\":\"" + pair.second + "\",";
+            }
+            newJson.pop_back(); // Remove the last comma
+            newJson += "}";
+
+            callback(true, newJson);
+        }
+        catch (...) {
+            callback(false, createJsonResponse("error", "Internal server error."));
+        }
+    }
+    else {
+        callback(false, createJsonResponse("error", "Request timeout."));
+    }
+}
+
+void clusterEncrypt(const std::string& ip, const std::string& port, const std::string& appId, const std::string& profile, const std::string& data, const std::function<void(bool, const std::string&)>& callback, bool isHTTPS = false, const std::string& authToken = "") {
+    auto url = (isHTTPS ? "https://" : "http://") + ip + ":" + port + "/encrypt";
+    std::string ver = JSONCPP_VERSION_STRING;
+    std::string jsonStr = "{"
+        "\"appId\": \"" + appId + "\", "
+        "\"profile\": \"" + profile + "\","
+		"\"data\": \"" + data + "\""
+        "}";
+
+
+    std::promise<std::string> promise;
+    auto future = promise.get_future();
+
+    std::thread([url, jsonStr, promise = std::move(promise), isHTTPS, authToken]() mutable {
+        CURL* curl = curl_easy_init();
+        if (!curl) {
+            promise.set_value(createJsonResponse("error", "Unable to initialize curl"));
+            return;
+        }
+
+        std::string response;
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonStr.c_str());
+
+        if (isHTTPS) {
+            // Disable SSL verification for self-signed certificates
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        }
+
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        // --- Conditionally add the Authorization header if authToken is NOT empty ---
+        if (!authToken.empty()) { // Check if the string is not empty
+            std::string authHeader = "Authorization: Bearer " + authToken;
+            headers = curl_slist_append(headers, authHeader.c_str());
+        }
+        // --------------------------------------------------------------------------
+
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        CURLcode res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+
+        if (res != CURLE_OK) {
+            promise.set_value(createJsonResponse("error", "Error: " + std::string(curl_easy_strerror(res))));
+        }
+        else {
+            promise.set_value(response);
+        }
+        }).detach();
+
+    if (future.wait_for(std::chrono::seconds(30)) == std::future_status::ready) {
+        try {
+            std::string result = future.get();
+            LOG_INFO << "Response: " << result;
+
+            // Check if result contains escape characters
+            if (result.find('\\') != std::string::npos) {
+                // Remove escape characters
+                result.erase(std::remove(result.begin(), result.end(), '\\'), result.end());
+            }
+
+            // Manual parsing of the main response
+            auto jsonResponse = manualJsonParse(result);
+            LOG_INFO << "after Response: " << result;
+
+            // Check if returnId exists
+            if (jsonResponse.find("toReturn") != jsonResponse.end()) {
+                std::string returnIdStr = jsonResponse["toReturn"];
+
+                LOG_INFO << "toReturn: " << returnIdStr;
+
+                // Manually parse returnIdStr
+                auto returnIdJson = manualJsonParse(returnIdStr);
+                if (returnIdJson.empty()) {
+                    LOG_ERROR << "Failed to parse returnId: " << returnIdStr;
+                    callback(false, createJsonResponse("error", "Invalid returnId format."));
+                    return;
+                }
+
+                // Merge the fields from returnIdJson into jsonResponse
+                jsonResponse.insert(returnIdJson.begin(), returnIdJson.end());
+            }
+
+            //std::string similarity = jsonResponse["similarity"];
+            std::string version = jsonResponse["version"];
+            //if (!isSimilarityValid(similarity, version)) {
+            //    std::string cause = "Not found.";
+            //    callback(false, createJsonResponse("error", cause));
+            //    return;
+            //}
+
+            //// Remove the original returnId and similarity fields
+            ////jsonResponse.erase("returnId");
+            //jsonResponse.erase("similarity");
+
+            // Add version information
+            //jsonResponse["cversion"] = "v1.0"; // Replace with actual version
+
+            //add minutiea if version == 0;
+            //if (version == "0")
+            //{
+            //    // include templateHex on the response
+            //    jsonResponse["templateHex"] = minutiae;
+
+            //}
+
+            // Convert back to JSON string manually
+            std::string newJson = "{";
+            for (const auto& pair : jsonResponse) {
+                newJson += "\"" + pair.first + "\":\"" + pair.second + "\",";
+            }
+            newJson.pop_back(); // Remove the last comma
+            newJson += "}";
+
+            callback(true, newJson);
+        }
+        catch (...) {
+            callback(false, createJsonResponse("error", "Internal server error."));
+        }
+    }
+    else {
+        callback(false, createJsonResponse("error", "Request timeout."));
+    }
 }
 // 
 // 
@@ -1856,6 +2096,125 @@ const char* startScanAndGetFingerIDs(const char* ipAddress, const char* port, co
 {
     initLog(isLog);
     return ScanValidateFinger(ipAddress, port, appId, true, authToken);
+}
+
+const char* startBioEncrypt(const char* ipAddress, const char* port, const char* appId, const char* profile, const char* data, const bool isLog, const char* authToken)
+{
+    initLog(isLog);
+
+    bool isHttps = true;
+    std::string cause;
+    std::string ip = ipAddress;
+    std::string mport = port;
+    std::string mappId = appId;
+    std::string mprofile = profile;
+    std::string mdata = data;
+    std::string authTokenStr = authToken ? authToken : "";
+
+    if (!validateInputVal(ip, mport, mappId, cause)) {
+        std::string retstr = "BioEncryption fail. Cause: " + cause;
+        LOG_ERROR << retstr;
+        mMessageRet = createJsonResponse("error", retstr);
+        return mMessageRet.c_str();
+    }
+
+    if (mdata.empty() || mprofile.empty()) {
+        cause = "Data/profile is empty";
+        std::string retstr = "BioEncryption fail. Cause: " + cause;
+        LOG_ERROR << retstr;
+        mMessageRet = createJsonResponse("error", retstr);
+        return mMessageRet.c_str();
+    }
+
+    std::string messages_base;
+    clusterEncrypt(ip, mport, mappId, mprofile, mdata, [&messages_base](bool success, const std::string& message) {
+
+        if (success) {
+            LOG_INFO << "clusterEncrypt success: " << message;
+            messages_base = message;
+        }
+        else {
+            LOG_SYSERR << "clusterEncrypt - Operation failed: " << message;
+            messages_base = message;
+        }
+        }, isHttps, authTokenStr);
+
+    mMessageRet = messages_base;
+
+    return mMessageRet.c_str();
+}
+
+const char* startBioDecrypt(const char* ipAddress, const char* port, const char* appId, const char* profile, const char* data, const bool isLog, const char* authToken)
+{
+    initLog(isLog);
+
+    std::lock_guard<std::mutex> lock(g_mutex); // Lock the mutex for the duration of this scope
+    //unsigned int bufferSize = 400 * 400;
+    //unsigned char* buffer = new unsigned char[bufferSize];
+    //std::memset(buffer, 0, bufferSize);
+    std::string cause;
+    std::string templateHex;
+    mMessageRet.clear();
+    mStage = STAGE_IDLE;
+    cv::Mat fingerprintImage;
+
+
+    bool isHttps = true;
+    std::string ip = ipAddress;
+    std::string mport = port;
+    std::string mappId = appId;
+    std::string mprofile = profile;
+    std::string mdata = data;
+    std::string authTokenStr = authToken ? authToken : "";
+
+    if (!validateInputVal(ip, mport, mappId, cause)) {
+	    std::string retstr = "BioDecryption fail. Cause: " + cause;
+	    LOG_ERROR << retstr;
+	    mMessageRet = createJsonResponse("error", retstr);
+	    return mMessageRet.c_str();
+    }
+
+    if (mdata.empty() || mprofile.empty()) {
+	    cause = "Data/profile/minutiae is empty";
+	    std::string retstr = "BioDecryption fail. Cause: " + cause;
+	    LOG_ERROR << retstr;
+	    mMessageRet = createJsonResponse("error", retstr);
+	    return mMessageRet.c_str();
+    }
+
+
+    // Start capture in a separate thread
+    mStage = STAGE_CAPTURE;
+    if (!captureFingerprintImage(fingerprintImage, cause, cancelPromise)) {
+        std::string retstr = "Failed to capture. Cause: " + cause;
+        LOG_ERROR << retstr;
+        mMessageRet = createJsonResponse("error", retstr);
+        return mMessageRet.c_str();
+    }
+
+    if (!getTemplate(fingerprintImage, templateHex, cause)) {
+        std::string retstr = "Failed to getTemplate. Cause: " + cause;
+        LOG_ERROR << retstr;
+        mMessageRet = createJsonResponse("error", retstr);
+        return mMessageRet.c_str();
+    }
+
+    std::string messages_base;
+    clusterDecrypt(ip, mport, mappId, mprofile, templateHex, mdata, [&messages_base](bool success, const std::string& message) {
+
+	    if (success) {
+		    LOG_INFO << "clusterDecrypt success: " << message;
+		    messages_base = message;
+	    }
+	    else {
+		    LOG_SYSERR << "clusterDecrypt - Operation failed: " << message;
+		    messages_base = message;
+	    }
+	    }, isHttps, authTokenStr);
+
+    mMessageRet = messages_base;
+
+    return mMessageRet.c_str();
 }
 
 
