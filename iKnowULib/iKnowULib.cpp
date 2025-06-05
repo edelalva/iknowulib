@@ -2098,6 +2098,22 @@ const char* startScanAndGetFingerIDs(const char* ipAddress, const char* port, co
     return ScanValidateFinger(ipAddress, port, appId, true, authToken);
 }
 
+void startScanAndGetFingerIDsBuf(const char* ipAddress, const char* port, const char* appId, const bool isLog, const char* authToken, char* outBuffer, int bufferLen)
+{
+    initLog(isLog);
+    std::string ret = ScanValidateFinger(ipAddress, port, appId, true, authToken);
+	if (ret.length() < bufferLen) {
+		std::strncpy(outBuffer, ret.c_str(), bufferLen);
+		outBuffer[bufferLen - 1] = '\0'; // Ensure null-termination
+	}
+	else {
+		LOG_ERROR << "Output buffer is too small for the response.";
+		std::strncpy(outBuffer, "Error: Buffer too small", bufferLen);
+		outBuffer[bufferLen - 1] = '\0'; // Ensure null-termination
+	}
+	
+}
+
 const char* startBioEncrypt(const char* ipAddress, const char* port, const char* appId, const char* profile, const char* data, const bool isLog, const char* authToken)
 {
     initLog(isLog);
@@ -2310,6 +2326,38 @@ const char* startScanAndRegisterFingerIDs(const char* ipAddress, const char* por
     initLog(isLog);
     // include minutiae from the scan
     return ScanRegisterFinger(ipAddress, port, appId, finger, returnId, minutiae, true, authToken );
+}
+
+void startScanAndRegisterFingerIDsBuf(const char* ipAddress, const char* port, const char* appId, const char* finger, const char* returnId, const char* minutiae, const bool isLog, const char* authToken, char* outBuffer, int bufferLen)
+{
+    // islog false for chrome extension
+    initLog(isLog);
+    // include minutiae from the scan
+    std::string ret = ScanRegisterFinger(ipAddress, port, appId, finger, returnId, minutiae, true, authToken);
+	if (ret.length() < bufferLen) {
+		std::strncpy(outBuffer, ret.c_str(), bufferLen);
+		outBuffer[bufferLen - 1] = '\0'; // Ensure null-termination
+	}
+	else {
+		LOG_ERROR << "Output buffer is too small for the response.";
+		std::strncpy(outBuffer, "Error: Buffer too small", bufferLen);
+		outBuffer[bufferLen - 1] = '\0'; // Ensure null-termination
+	}
+}
+
+void startScanBuf(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const bool isLog, char* outBuffer, int bufferlen)
+{
+	std::string ret = startScan(ipAddress, port, appId, finger_, returnId, isLog);
+	if (ret.length() < bufferlen) {
+		std::strncpy(outBuffer, ret.c_str(), bufferlen);
+		outBuffer[bufferlen - 1] = '\0'; // Ensure null-termination
+	}
+    else {
+        LOG_ERROR << "Output buffer is too small for the response.";
+        std::strncpy(outBuffer, "Error: Buffer too small", bufferlen);
+        outBuffer[bufferlen - 1] = '\0'; // Ensure null-termination
+    }
+
 }
 
 const char* startScan(const char* ipAddress, const char* port, const char* appId, const char* finger_, const char* returnId, const bool isLog)
